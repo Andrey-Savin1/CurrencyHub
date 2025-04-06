@@ -23,6 +23,11 @@ CurrencyHub - это микросервис для обработки и рас�
 
 # Технологический стек
    - Язык: Java 17+
-   - Фреймворки: Spring Boot, Spring Scheduler
-   - Блокировки: ShedLock
+   - Фреймворки: Spring Boot 3.x, Spring Web MVC, Spring Data JPA, Spring Scheduler
+   - Блокировки: ShedLock 6.3.1 (с JDBC-провайдером)
+   - База данных: PostgreSQL (+ Flyway для миграций)
    - Формат данных: XML (вход), JSON (выход)
+   - Маппинг: MapStruct 1.6.3
+   - Сериализация: Jackson (XML через JAXB + JSON)
+   - Парсинг XML: Jakarta XML Binding (JAXB) 4.0.2
+   - Тестирование: Testcontainers (PostgreSQL, MockServer), MockServer 5.15.0, REST Assured
