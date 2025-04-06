@@ -34,7 +34,7 @@ public class ConversionRateService {
     //lockAtMostFor = "PT25H": Ограничивает максимальное время блокировки до 25 часов (на случай зависания).
 
     @Scheduled(fixedRateString = "${app.timers.rate}", timeUnit = TimeUnit.MINUTES)
-    // @SchedulerLock(name = "firstTask", lockAtLeastFor = "PT3M", lockAtMostFor = "PT5M")
+    @SchedulerLock(name = "firstTask", lockAtLeastFor = "PT5M", lockAtMostFor = "PT8M")
     @Transactional
     public void saveRate() {
         log.debug("Starting scheduling");
