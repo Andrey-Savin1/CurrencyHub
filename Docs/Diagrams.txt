@@ -1,0 +1,170 @@
+***********************************************************************************
+Sequence Diagram
+***********************************************************************************
+
+@startuml
+actor Клиент as Client
+participant "CurrenciesRate\nController" as Controller
+participant "ConversionRate\nService" as Service
+participant "Database" as DB
+participant "Scheduler" as Scheduler
+
+group Инициализация данных (фоновый процесс)
+  Scheduler -> Service: Запуск обновления курсов
+  Service -> DB: Сохранение актуальных курсов
+end
+
+group Запрос курса валют
+  Client -> Controller: GET /api/v1/rate/{source}/{destination}
+  Controller -> Service: getRate(source, destination)
+  Service -> DB: Поиск валюты по кодам {source} и {destination}
+  DB-> Service: Возврат валют
+  Service -> DB: Запрос курса\n(WHERE source=? AND destination=?)
+  alt Курс найден
+    DB --> Service: Объект ConversionRate
+    Service --> Controller: Возврат курса
+    Controller --> Client: 200 OK + {"rate": значение}
+  else Курс отсутствует
+    DB --> Service: null
+    Service --> Controller: Ошибка
+    Controller --> Client: 404 Not Found
+  end
+end
+@enduml
+
+***********************************************************************************
+ER диаграмма
+***********************************************************************************
+
+@startuml
+' Сущности
+entity currencies {
+  + id (PK): bigserial
+  --
+  code: varchar(3) <<UK>>
+  iso_code: integer <<UK>>
+  description: varchar(64)
+  active: boolean
+  scale: integer
+  symbol: varchar(2)
+  created_at: timestamp
+  modified_at: timestamp
+}
+
+entity rate_providers {
+  + provider_code (PK): varchar(3)
+  --
+  provider_name: varchar(28) <<UK>>
+  description: varchar(255)
+  priority: integer
+  active: boolean
+  default_multiplier: numeric
+  created_at: timestamp
+  modified_at: timestamp
+}
+
+entity conversion_rates {
+  + id (PK): bigserial
+  --
+  source_code (FK): varchar(3)
+  destination_code (FK): varchar(3)
+  rate_begin_time: timestamp
+  rate_end_time: timestamp
+  rate: numeric
+  provider_code (FK): varchar(3)
+  multiplier: numeric
+  system_rate: numeric
+  created_at: timestamp
+  modified_at: timestamp
+}
+
+entity rate_correction_coefficients {
+  + id (PK): bigserial
+  --
+  source_code: varchar
+  destination_code: varchar
+  multiplier: numeric
+  provider_code (FK): varchar(3)
+  creator: varchar(255)
+  modifier: varchar(255)
+  date_from: date
+  date_to: date
+  profile_type: varchar(50)
+  created_at: timestamp
+  modified_at: timestamp
+  archived: boolean
+}
+
+entity shedlock {
+  + name (PK): varchar(64)
+  --
+  lock_until: timestamp
+  locked_at: timestamp
+  locked_by: varchar(255)
+}
+
+' Связи
+currencies ||--o{ conversion_rates : source_code
+currencies ||--o{ conversion_rates : destination_code
+rate_providers ||--o{ conversion_rates : provider_code
+rate_providers ||--o{ rate_correction_coefficients : provider_code
+
+' Индексы
+note top of currencies
+  Индексы:
+  - code_unique
+  - iso_code_unique
+  - currencies_active_uidx
+end note
+
+note top of rate_providers
+  Индексы:
+  - rate_providers_code_uidx
+end note
+@enduml
+
+***********************************************************************************
+Component Diagram
+***********************************************************************************
+
+@startuml
+component "CurrencyHub" as App {
+  [CurrenciesRate] as Controller <<RestController>>
+  [ConversionRateService] as CR <<Service>>
+  [CurrencyService] as CS <<Service>>
+  [RateProviderService] as RP <<Service>>
+  [CentralBankClient] as CB <<Service>>
+
+}
+
+database "PostgreSQL" as DB {
+  [conversion_rates] as conv_rt
+  [currencies] as cur
+  [rate_correction_coefficients]
+  [rate_providers] as prov
+  [shedlock] as shed
+}
+
+interface "REST API" as API
+cloud "Central Bank API" as External
+
+[API Client] -> API : HTTP requests
+API --> Controller : routes
+Controller --> CR : calls
+CR  --> CS : calls
+CR  --> RP : calls
+CR  --> conv_rt: JDBC
+CR  --> cur: JDBC
+CR  --> prov: JDBC
+CR  --> shed: JDBC
+RP  --> CB: calls
+CS --> cur: JDBC
+CB--> External : API calls
+
+note right of CR
+  Содержит бизнес-логику:
+  - Получение курса
+  - Валидация валют
+  - Обработка ошибок
+end note
+@enduml

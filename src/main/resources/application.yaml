@@ -1,0 +1,23 @@
+spring:
+  application:
+    name: CurrencyHub
+  datasource:
+    url: jdbc:postgresql://localhost:5432/courses
+    username: postgres
+    password: 1234
+    driver-class-name: org.postgresql.Driver
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+
+logging:
+  level:
+    ru.savin.currencyhub: debug
+    net.javacrumbs.shedlock: debug
+
+app:
+  timers:
+    rate: "60"
+#    rate: "0 0 10 * * ?" #Выполняем в 10 утра каждый день
+
+CBURL: "https://www.cbr.ru/scripts/XML_daily.asp"
